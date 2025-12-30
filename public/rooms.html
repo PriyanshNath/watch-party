@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rooms</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #FEC3DC;
+    }
+
+    .wrap {
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 18px;
+      box-shadow: 0 10px 25px rgba(0,0,0,.15);
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .create-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: #C57FC7;
+      color: white;
+      cursor: pointer;
+    }
+
+    .rooms-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .refresh {
+      background: #3C5250;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* 🔥 ROOM ROW */
+    .room {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      border-radius: 10px;
+      background: #f9f9f9;
+      margin-bottom: 10px;
+    }
+
+    .room-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .room-name {
+      font-weight: bold;
+    }
+
+    .room-type {
+      font-size: 12px;
+      color: #666;
+    }
+
+    /* ✅ UNIFORM JOIN BUTTON */
+    .join-btn {
+      width: 90px;
+      height: 36px;
+      background: #C57FC7;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .join-btn:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>🏠 Rooms</h1>
+
+    <div class="card">
+      <h2>Create Room</h2>
+      <input id="roomName" placeholder="Room name"/>
+      <select id="roomType">
+        <option value="public">Public</option>
+        <option value="private">Private</option>
+      </select>
+      <button class="create-btn" onclick="createRoom()">Create</button>
+    </div>
+
+    <div class="card">
+      <div class="rooms-header">
+        <h2>Available Rooms</h2>
+        <button class="refresh" onclick="loadRooms()">🔄 Refresh</button>
+      </div>
+      <div id="rooms">No rooms yet.</div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const roomsDiv = document.getElementById("rooms");
+
+  let refreshTimer = null;
+  const REFRESH_INTERVAL_MS = 10000; // 10s
+
+  // Request rooms only after socket connects for reliability
+  socket.on("connect", () => {
+    socket.emit("get-rooms");
+    // start periodic refresh after connected
+    if (!refreshTimer) {
+      refreshTimer = setInterval(() => socket.emit("get-rooms"), REFRESH_INTERVAL_MS);
+    }
+  });
+
+  function loadRooms() {
+    socket.emit("get-rooms");
+  }
+
+  function createRoom() {
+    const name = document.getElementById("roomName").value.trim();
+    const type = document.getElementById("roomType").value;
+    if (!name) return alert("Enter room name");
+
+    socket.emit("create-room", { name, type });
+    document.getElementById("roomName").value = "";
+  }
+
+  socket.on("rooms-update", (rooms) => {
+    if (!rooms || !rooms.length) {
+      roomsDiv.innerHTML = "No rooms yet.";
+      return;
+    }
+
+    roomsDiv.innerHTML = "";
+    rooms.forEach((room) => {
+      const id = room._id || room.id;
+      const div = document.createElement("div");
+      div.className = "room";
+      div.innerHTML = `
+        <div class="room-info">
+          <div class="room-name">${room.name}</div>
+          <div class="room-type">${room.type}</div>
+        </div>
+        <button class="join-btn" data-id="${id}">Join</button>
+      `;
+      // attach click handler to avoid inline JS and allow id validation
+      div.querySelector(".join-btn").addEventListener("click", () => {
+        join(id);
+      });
+      roomsDiv.appendChild(div);
+    });
+  });
+
+  function join(id) {
+    // basic validation for Mongo ObjectId-ish string
+    if (!id || !String(id).match(/^[0-9a-fA-F]{24}$/)) {
+      alert("Invalid room link (stale). Please refresh the rooms list.");
+      socket.emit("get-rooms");
+      return;
+    }
+    window.location.href = `/room.html?room=${id}`;
+  }
+
+  // stop the interval when user leaves the page
+  window.addEventListener("beforeunload", () => {
+    if (refreshTimer) clearInterval(refreshTimer);
+  });
+
+  // safety: if socket disconnects, attempt reconnect and re-request rooms on reconnect
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected — will refresh on reconnect");
+  });
+
+  socket.on("connect_error", (err) => {
+    console.warn("Socket connect error:", err);
+  });
+</script>
+
+</body>
+</html>

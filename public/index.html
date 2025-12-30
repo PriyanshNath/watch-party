@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Watch Party</title>
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", sans-serif;
+      background: #FEC3DC;
+    }
+
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 18px;
+      width: 90%;
+      max-width: 380px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      margin-bottom: 1rem;
+      outline: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #C57FC7;
+      color: white;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>🎉 Watch Party</h1>
+    <p>Enter your username</p>
+    <input id="username" placeholder="Your name…" />
+    <button onclick="enter()">Continue</button>
+  </div>
+
+  <script>
+    const socket = io();
+
+    function enter() {
+      const username = document.getElementById("username").value.trim();
+
+      if (!username) {
+        alert("Username required!");
+        return;
+      }
+
+      localStorage.setItem("username", username);
+      socket.emit("set-username", username);
+
+        window.location.href = "/rooms.html";
+
+      // Next: redirect to rooms page
+    }
+  </script>
+</body>
+</html>
